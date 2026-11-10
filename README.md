@@ -222,7 +222,9 @@ existing build keeps calling the old URL).
 - Anyone with an account can run uploads, which spend the deployment's Vision and
   OpenRouter credits. There is no per-user quota yet.
 - Test coverage is partial: run `.venv/bin/python -m unittest discover -s tests`
-  (chart extraction, CORS patterns, image store and others); there is no CI yet.
+  (chart extraction, CORS patterns, image store and others). CI
+  (`.github/workflows/ci.yml`) runs them on every push and pull request without
+  the image pipeline's machine-learning packages, which the tests do not need.
 - The UniChart service (`backend/services/unichart/`) is not deployed. Without
   `UNICHART_URL`, `POST /guest/extract-chart` returns 503.
 

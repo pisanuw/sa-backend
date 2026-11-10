@@ -1,0 +1,26 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      # The unit tests do not run the image pipeline, so skip its machine-learning stack
+      # (torch, YOLO, OpenCV, Google Vision and friends), which is large and slow to install.
+      - name: Install dependencies without the image pipeline
+        run: |
+          grep -vE '^(torch|torchvision|ultralytics|ultralytics-thop|opencv-python|google-cloud-vision|matplotlib|seaborn|scipy|pandas|sympy)==' requirements.txt > /tmp/requirements-ci.txt
+          python -m pip install -r /tmp/requirements-ci.txt
+      - name: Unit tests
+        run: python -m unittest discover -s tests
