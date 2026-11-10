@@ -10,8 +10,6 @@ from backend.models import Job
 from backend.jobs.retention import empty_payload
 from backend.descriptions.summary_service import generate_summary_bundle
 import base64
-#from backend.pipeline.pipeline import process_image
-from backend.pipeline.pipeline2 import process_image
 from backend.routes.api import json_to_mermaid
 
 POLL_SECONDS = int(os.getenv("WORKER_POLL_SECONDS", "2"))
@@ -103,6 +101,10 @@ def process_upload_job(job: Job, payload: dict):
         tmp_path = tmp.name
 
     try:
+        # Imported here, not at the top: the image pipeline loads torch, YOLO and Google Vision,
+        # which chart and summary jobs (and the tests) do not need.
+        from backend.pipeline.pipeline2 import process_image
+
         json_data = process_image(tmp_path, base_name="uploaded")
         mermaid_code = json_to_mermaid(json_data)
 
