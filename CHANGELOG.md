@@ -7,6 +7,8 @@ database change lists the migration to run **before** deploying (`make migrate`)
 ## [Unreleased]
 
 ### Added
+- CI (GitHub Actions): the unit tests on Python 3.12 on every push and pull request, installed
+  without the image pipeline's machine-learning packages.
 - Chart image upload: a picture of a chart becomes an editable data table, a suggested chart type
   and a Vega-Lite spec.
   - `POST /jobs/extract-chart` (signed in) and `POST /guest/extract-chart` (no account);
@@ -48,6 +50,12 @@ database change lists the migration to run **before** deploying (`make migrate`)
 - `Create_Chart` research event type (the frontend logs it when someone chooses Chart on /create; unknown
   event types are a 400).
 - `tests/test_charts.py`.
+
+### Changed
+- The worker loads the image pipeline (torch, YOLO, Google Vision) only when it runs a flowchart
+  upload. Chart, summary and test jobs, and the unit tests, no longer need those packages
+  installed. Before, every inline job imported them, so an install without them (a contributor
+  setup, the test suite) could not run chart jobs either.
 
 ### Removed
 - `POST /upload`, `POST /generate-summary` and `POST /generate-outline`. They ran the paid image pipeline
