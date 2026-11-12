@@ -23,7 +23,16 @@ from backend.models import Job  # noqa: E402
 from backend.pipeline import chart_extract as ce  # noqa: E402
 from backend.pipeline.chart_spec import build_config, build_spec  # noqa: E402
 
-PNG = b"\x89PNG\r\n\x1a\n" + b"0" * 32
+def _tiny_png():
+    # A real (if tiny) picture: the chart job now decodes the upload before reading it.
+    from PIL import Image
+
+    out = io.BytesIO()
+    Image.new("RGB", (4, 4), "white").save(out, format="PNG")
+    return out.getvalue()
+
+
+PNG = _tiny_png()
 
 
 def single_series(extractor="unichart"):

@@ -223,11 +223,23 @@ def enqueue_upload_job():
     if not file or not file.filename:
         return jsonify({"error": "Invalid file"}), 400
 
-    img_bytes = file.read()
-    if not img_bytes:
-        return jsonify({"error": "Empty file"}), 400
+    # Checked before a job exists, so a file that cannot be used never reaches the paid readers.
+    from backend.image_prep import UnreadableImage, prepare
+    from backend.image_store import MAX_IMAGE_BYTES
 
-    mime_type = file.mimetype or "image/png"
+    img_bytes = file.read(MAX_IMAGE_BYTES + 1)
+    if not img_bytes:
+        return jsonify({"error": "The file is empty."}), 400
+    if len(img_bytes) > MAX_IMAGE_BYTES:
+        # The original is kept with the STEM image, and the store takes up to this size.
+        return jsonify({"error": f"The picture is larger than {MAX_IMAGE_BYTES // (1024 * 1024)} MB. "
+                                 "Upload a smaller one."}), 413
+    try:
+        prepared = prepare(img_bytes)
+    except UnreadableImage as e:
+        return jsonify({"error": str(e)}), 400
+
+    mime_type = prepared.keepable_mime or file.mimetype or "image/png"
 
     payload = {
         "image_b64": base64.b64encode(img_bytes).decode("utf-8"),

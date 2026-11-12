@@ -8,6 +8,7 @@ from backend.app_factory import create_app
 from backend.db import db
 from backend.models import Job
 from backend.jobs.retention import empty_payload
+from backend.image_prep import UnreadableImage, prepare as prepare_image
 from backend.descriptions.summary_service import generate_summary_bundle
 import base64
 from backend.routes.api import json_to_mermaid
@@ -85,19 +86,17 @@ def process_generate_summary_job(job: Job, payload: dict):
 
 
 def process_upload_job(job: Job, payload: dict):
-    image_b64 = payload["image_b64"]
-    image_mime = payload.get("image_mime", "image/png")
+    img_bytes = base64.b64decode(payload["image_b64"])
 
-    img_bytes = base64.b64decode(image_b64)
+    # The readers get an upright RGB PNG, white where the original was transparent.
+    try:
+        prepared = prepare_image(img_bytes)
+    except UnreadableImage as e:
+        fail_job(job, str(e))
+        return
 
-    suffix = ".png"
-    if image_mime == "image/jpeg":
-        suffix = ".jpg"
-    elif image_mime == "image/webp":
-        suffix = ".webp"
-
-    with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
-        tmp.write(img_bytes)
+    with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
+        tmp.write(prepared.png)
         tmp_path = tmp.name
 
     try:
@@ -108,7 +107,13 @@ def process_upload_job(job: Job, payload: dict):
         json_data = process_image(tmp_path, base_name="uploaded")
         mermaid_code = json_to_mermaid(json_data)
 
-        image_data_url = f"data:{image_mime};base64," + base64.b64encode(img_bytes).decode("utf-8")
+        # Keep the original when it can be stored as it is (PNG, JPEG, WebP, GIF); a BMP or TIFF is
+        # kept as the prepared PNG instead. Either way it is the same size, so coordinates match.
+        if prepared.keepable_mime:
+            image_mime, kept = prepared.keepable_mime, img_bytes
+        else:
+            image_mime, kept = "image/png", prepared.png
+        image_data_url = f"data:{image_mime};base64," + base64.b64encode(kept).decode("utf-8")
 
         result = {
             "mermaid_json": json_data,
@@ -136,9 +141,14 @@ def process_extract_chart_job(job: Job, payload: dict):
     from backend.pipeline.chart_extract import ConsentRequired, ExtractionError, extract_chart
     from backend.pipeline.chart_result import build_chart_result
 
-    suffix = {"image/jpeg": ".jpg", "image/webp": ".webp"}.get(payload.get("image_mime"), ".png")
-    with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
-        tmp.write(base64.b64decode(payload["image_b64"]))
+    # Same preparation as STEM image uploads: a transparent chart PNG would otherwise read as black.
+    try:
+        prepared = prepare_image(base64.b64decode(payload["image_b64"]))
+    except UnreadableImage as e:
+        fail_job(job, str(e))  # also empties the payload, so the image is not kept
+        return
+    with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
+        tmp.write(prepared.png)
         tmp_path = tmp.name
 
     try:

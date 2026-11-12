@@ -124,6 +124,7 @@ To mimic production: `.venv/bin/gunicorn backend.wsgi:app --bind 127.0.0.1:4999 
 | `RUN_WORKER_IN_PROCESS` | `1` = run a polling worker thread in the web process (always-on hosts; leave `RUN_JOBS_INLINE` unset) |
 | `TRUSTED_PROXY_HOPS` | How many proxies in front of the app append to `X-Forwarded-For` and are trusted when finding the caller's address for rate limits. Default `1` on Cloud Run, `0` elsewhere (the header is ignored). |
 | `JOB_TIMEOUT_SECONDS` | Report a job stuck in `running` as failed after this long (default 900) |
+| `MAX_UPLOAD_PIXELS` | Largest picture an upload may be, in pixels (default 40,000,000, e.g. 8000 x 5000). Uploads are prepared by `backend/image_prep.py`: transparent areas on white, EXIF rotation applied, PNG, JPEG, WebP, GIF, BMP and TIFF read |
 
 `.env` and `*google-key.json` are git-ignored. Never commit credentials.
 

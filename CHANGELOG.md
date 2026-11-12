@@ -74,6 +74,18 @@ database change lists the migration to run **before** deploying (`make migrate`)
   per-account hourly limit and a cap of 100 stored images.
 
 ### Fixed
+- Uploads of PNGs with a transparent background (as draw.io, PowerPoint and the Mermaid editor export
+  them) reached the shape detector as an all-black picture, because OpenCV and Pillow's
+  `convert("RGB")` drop the alpha channel and transparent pixels are stored as black. Every upload,
+  and every chart image, is now prepared first (`backend/image_prep.py`): transparent areas go on
+  white, phone photos are turned upright from their EXIF rotation, the first frame of a GIF or TIFF
+  is used, and 16-bit greyscale keeps its contrast. GIF, BMP and TIFF can be uploaded too; a BMP or
+  TIFF original is kept as PNG, since the image store does not take those types.
+  stem-accessibility/frontend#4.
+- `POST /jobs/process-upload` refuses a file it cannot use before a job exists, so it never reaches
+  the paid readers: an empty or unreadable file or an SVG (400, with a message to show), a picture
+  over 40 million pixels (400, `MAX_UPLOAD_PIXELS`), or one over the image store's 8 MB (413).
+  Before, such a file ran the whole pipeline and failed only when the STEM image was saved.
 - `POST /longdesc` returned 500 for every request: `long_descriptions.owner_id` is NOT NULL and the route
   never set it. It now stores a placeholder owner (`anonymous`; the /ld page has no sign-in). Because the
   endpoint is open to anyone, it also validates sizes (alt text 2,000 characters, description 50,000, title
