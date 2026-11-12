@@ -13,6 +13,18 @@ from backend.descriptions.summary_service import generate_summary_bundle
 import base64
 from backend.routes.api import json_to_mermaid
 
+
+def process_image(image_path, base_name=None):
+    """The flowchart image pipeline (OCR, YOLO, the AI model), imported on first use.
+
+    It loads torch, YOLO and Google Vision, which chart and summary jobs (and the tests) do not
+    need, so importing this module must not import it. Code that refers to `process_image` by
+    name, such as another job type passing it along, keeps working.
+    """
+    from backend.pipeline.pipeline2 import process_image as run
+
+    return run(image_path, base_name=base_name)
+
 POLL_SECONDS = int(os.getenv("WORKER_POLL_SECONDS", "2"))
 
 
@@ -100,10 +112,6 @@ def process_upload_job(job: Job, payload: dict):
         tmp_path = tmp.name
 
     try:
-        # Imported here, not at the top: the image pipeline loads torch, YOLO and Google Vision,
-        # which chart and summary jobs (and the tests) do not need.
-        from backend.pipeline.pipeline2 import process_image
-
         json_data = process_image(tmp_path, base_name="uploaded")
         mermaid_code = json_to_mermaid(json_data)
 
